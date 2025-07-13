@@ -1,0 +1,16 @@
+langchain
+langchain_groq
+langchain_community
+langchain_chroma
+langchain_huggingface
+langchain_text_splitters
+python-dotenv
+fastapi
+uvicorn
+pymupdf
+faiss-cpu
+pytest
+httpx
+streamlit
+sentence-transformers
+pypdf

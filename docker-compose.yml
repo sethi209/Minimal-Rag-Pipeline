@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: rag_app
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./research_papers:/app/research_papers
+
+  ui:
+    build: .
+    container_name: rag_ui
+    env_file:
+      - .env
+    command: streamlit run app_ui.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./research_papers:/app/research_papers
+      - .:/app
+
+  tests:
+    build: .
+    container_name: rag_tests
+    env_file:
+      - .env
+    command: pytest tests/
+    volumes:
+      - ./research_papers:/app/research_papers
+      - ./tests:/app/tests
+

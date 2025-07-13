@@ -1,0 +1,20 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# Local environment variables
+.env
+
+# Test outputs (optional)
+*.coverage
+.pytest_cache/
+venv/
+# Avoid copying notebooks (if any)
+*.ipynb
+
+# Ignore Docker system files
+.dockerignore
+Dockerfile
