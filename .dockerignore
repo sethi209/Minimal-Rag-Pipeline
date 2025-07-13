@@ -8,11 +8,11 @@ __pycache__/
 # Local environment variables
 .env
 
-# Test outputs (optional)
+# Test outputs 
 *.coverage
 .pytest_cache/
 venv/
-# Avoid copying notebooks (if any)
+# Avoid copying notebooks 
 *.ipynb
 
 # Ignore Docker system files

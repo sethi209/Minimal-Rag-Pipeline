@@ -11,14 +11,19 @@ from langchain_community.vectorstores import FAISS
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.chains import create_retrieval_chain
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List, Any, Dict
 
 load_dotenv()
 ## load the GROQ API Key
 os.environ['GROQ_API_KEY']=os.getenv("GROQ_API_KEY")
 groq_api_key=os.getenv("GROQ_API_KEY")
 
-## If you do not have open AI key use the below Huggingface embedding
+## load HF API Key
 os.environ['HF_TOKEN']=os.getenv("HF_TOKEN")
+
+# Langsmith Tracking and Langchain API Key
 os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
 os.environ["LANGCHAIN_TRACING_V2"]="true"
 os.environ["LANGCHAIN_PROJECT"]=os.getenv("LANGCHAIN_PROJECT")
@@ -33,22 +38,22 @@ formatter = logging.Formatter(
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+# Loading Embedding Model
 embeddings=HuggingFaceEmbeddings(model_name="BAAI/bge-base-en-v1.5")
 
 loader=PyPDFDirectoryLoader("research_papers") ## Data Ingestion step
 docs=loader.load() ## Document Loading
 text_splitter=RecursiveCharacterTextSplitter(chunk_size=1000,chunk_overlap=200)
 splits = text_splitter.split_documents(docs)
-# enrich metadata
-# for doc in splits:
-#     doc.metadata["source"] = doc.metadata.get("source", "unknown")
-#     doc.metadata["page"] = doc.metadata.get("page", "unknown")
 
+# Creating Vectorstore and retriever
 vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
 retriever = vectorstore.as_retriever()
 
+# Loading LLama model from Groq API
 llm=ChatGroq(groq_api_key=groq_api_key,model_name="llama-3.1-8b-instant")
 
+# Prompt 
 prompt_template="""
     Answer the questions based on the provided context only.
     Please provide the most accurate respone based on the question
@@ -62,16 +67,13 @@ prompt_template="""
 
 prompt = ChatPromptTemplate.from_template(prompt_template)
 
+# Creating Document & Retrieval chain
 document_chain=create_stuff_documents_chain(llm,prompt)
 document_chain
-
 retrieval_chain=create_retrieval_chain(retriever,document_chain)
 retrieval_chain
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List, Any, Dict
-
+# Initiating FastAPI
 app = FastAPI()
 
 # ------------------------------
@@ -106,14 +108,12 @@ def query_endpoint(request: QueryRequest):
         if not request.query.strip():
             logger.warning(f'{{"event": "bad_request", "reason": "empty_query"}}')
             raise HTTPException(status_code=400, detail="Query cannot be empty.")
-        
-        # Retrieve
-        retriever_results = retriever.vectorstore.similarity_search_with_score(request.query)
 
-        # Run your retrieval chain
+        # Running retrieval chain
         rag_response = retrieval_chain.invoke({"input": request.query})
         answer_text = rag_response.get("answer", "")
 
+        # Handling empty answers
         if not answer_text.strip():
             logger.warning(f'{{"event": "llm_failure", "reason": "empty_response"}}')
             raise HTTPException(status_code=502, detail="Language model returned an empty response.")
@@ -126,10 +126,12 @@ def query_endpoint(request: QueryRequest):
             k=3
         )
 
+        # Handling empty retrieval results
         if not retriever_results:
             logger.warning(f'{{"event": "retrieval_failure", "reason": "no_similar_documents"}}')
             raise HTTPException(status_code=404, detail="No relevant documents found for the query.")
 
+        # Summary
         context_documents = []
         for doc, score in retriever_results:
             logger.info(f'{{"event": "retrieval_result", "score": {score}, "metadata": {doc.metadata}}}')

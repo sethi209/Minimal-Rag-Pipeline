@@ -1,11 +1,10 @@
 import sys
 import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from fastapi.testclient import TestClient
 from app import app
 
 client = TestClient(app)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 def test_query_endpoint_success():
     response = client.post("/query", json={"query": "What is a transformer model?"})
